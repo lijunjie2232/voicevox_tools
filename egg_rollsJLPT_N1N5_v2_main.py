@@ -118,6 +118,13 @@ class WordCache:
                 self.cache = data["cache"]
                 self.count = data["count"]
     
+    def get_id(self, key):
+        if key in self.cache:
+            return self.cache[key]
+        else:
+            self.count += 1
+            self.cache[key] = self.count
+            return self.count
     def to_dict(self):
         return {"cache": self.cache, "count": self.count}
 
@@ -206,7 +213,7 @@ def main(args, hook_params):
             speaker_id=speaker_id,
         )
         
-        music_count = 
+        
         a_ctx = """[]"""
         b_ctx = """%s"""
         print(f"speaker_id: {speaker_id}")
