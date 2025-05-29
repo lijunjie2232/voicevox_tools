@@ -3,6 +3,73 @@ from pprint import pprint
 from pathlib import Path
 
 
+class SpeakerStyle:
+    def __init__(self, id: int, name: str, type: str):
+        self.id = id
+        self.name = name
+        self.type = type
+
+    def __repr__(self):
+        return self.to_dict()
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+        }
+
+
+class SpeakerSupportedFeatures:
+    def __init__(self, permitted_synthesis_morphing: str):
+        self.permitted_synthesis_morphing = permitted_synthesis_morphing
+
+    def to_dict(self):
+        return {
+            "permitted_synthesis_morphing": self.permitted_synthesis_morphing,
+        }
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def __repr__(self):
+        return self.to_dict()
+
+
+class SpeakerStylesInfo:
+    def __init__(
+        self,
+        name: str,
+        speaker_uuid,
+        styles: list[dict],
+        version: str,
+        supported_features: dict,
+    ):
+        self.name = name
+        self.speaker_uuid = speaker_uuid
+        self.styles = [SpeakerStyle(**style) for style in styles]
+        self.version = version
+        self.supported_features = SpeakerSupportedFeatures(**supported_features)
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "speaker_uuid": self.speaker_uuid,
+            "styles": [style.to_dict() for style in self.styles],
+            "version": self.version,
+            "supported_features": self.supported_features.to_dict(),
+        }
+
+    def __repr__(self):
+        return self.to_dict()
+
+    def __str__(self):
+        return str(self.to_dict())
+
+
 class VoicevoxEngine:
 
     def __init__(
@@ -154,7 +221,9 @@ class VoicevoxEngine:
             speaker, _ = args
             return uuid_filter(speaker) and name_filter(speaker)
 
-        speaker = list(filter(speaker_filter, zip(self.speakers, range(len(self.speakers)))))
+        speaker = list(
+            filter(speaker_filter, zip(self.speakers, range(len(self.speakers))))
+        )
         if len(speaker) == 0:
             raise Exception("speaker not found")
 
@@ -221,6 +290,8 @@ if __name__ == "__main__":
         speaker_uuid="67d5d8da-acd7-4207-bb10-b5542d3a663b",
     )
     pprint(speaker_style)
+    for ss in speaker_style:
+        SpeakerStyle(**ss)
     v.speaker_init(speaker=23, skip_reinit=True)
     # params = v.audio_query(23, "こんにちは")
 
