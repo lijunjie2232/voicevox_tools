@@ -3,6 +3,8 @@ from VoicevoxEngine import VoicevoxEngine
 from pathlib import Path
 from tqdm import tqdm
 from pprint import pprint
+import genanki
+import json
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -42,6 +44,12 @@ def get_args():
         type=int,
         default=-1,  # 23
         help="speaker id",
+    )
+    parser.add_argument(
+        "--speaker_ids",
+        nargs="+",
+        default=[],  # 23
+        help="speaker ids",
     )
     parser.add_argument(
         "--speaker_uuid",
@@ -97,12 +105,38 @@ def print_speaker_styles(speaker_styles):
         print(f"version: {sss.version}")
         print()
 
+class WordCache:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.cache = {}
+        self.count = 0
+        self.init()
+    def init(self):
+        if self.path.is_file():
+            with open(self.path, "r") as f:
+                data = json.load(f)
+                self.cache = data["cache"]
+                self.count = data["count"]
+    
+    def to_dict(self):
+        return {"cache": self.cache, "count": self.count}
 
+    
+    def __str__(self):
+        return json.dumps(self.to_dict(), indent=4, ensure_ascii=False)
+    
+    def __repr__(self):
+        return self.__str__()
+    
+    def save(self):
+        with open(self.path, "w") as f:
+            json.dump(self.to_dict(), f, indent=4, ensure_ascii=False)
 def main(args, hook_params):
     # init voicevox engine
     engine = VoicevoxEngine(base_url=args.base_url)
     # get args
     cache_dir = Path(args.out_dir)
+    word_cache_file = cache_dir / "words.json"
     txt = Path(args.txt)
     assert txt.exists(), "txt_file is not found"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -110,9 +144,10 @@ def main(args, hook_params):
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
     speaker_id = args.speaker_id
+    speaker_ids = args.speaker_ids
     
     # init speaker id
-    if speaker_id < 0:  # get speaker_id first
+    if speaker_id < 0 and not speaker_ids:  # get speaker_id first
         if not speaker_uuid and not speaker_name:
             if args.query_only:
                 speakers = engine.speakers
@@ -140,12 +175,44 @@ def main(args, hook_params):
             print_speaker_styles(speaker_styles)
             if args.query_only:
                 return
-            speaker_id = int(input("Press specify speaker id to continue: "))
+            speaker_ids = [int(i) for i in input("Press specify speaker id to continue, if more than one, split with ',': ").split(",")]
+    elif speaker_id > 0:
+        speaker_ids = [speaker_id]
     try:
-        # engine.speaker_init(
-        #     speaker_id=speaker_id,
-        # )
+        # 创建一个模型
+        model_id = args.model_id
+        deck_id = args.deck_id
+        word_cache = WordCache(word_cache_file)
+        
+        target_tags = ["N5", "N4", "N3", "N2", "N1", "オノマトペ", "外", "N4N5真题词汇补充"]
+        model = genanki.Model(
+            model_id,
+            "Picture Card",
+            fields=[
+                {"name": "FrontImage"},
+                {"name": "BackImage"},
+            ],
+            templates=[
+                {
+                    "name": "Card 1",
+                    "qfmt": "{{FrontImage}}",
+                    "afmt": "{{BackImage}}",
+                },
+            ],
+        )
+        decks = [genanki.Deck(deck_id+idx, f"JLPT単語::{target_tags[i]}") for idx, i in target_tags]
+
+        engine.speaker_init(
+            speaker_id=speaker_id,
+        )
+        
+        music_count = 
+        a_ctx = """[]"""
+        b_ctx = """%s"""
         print(f"speaker_id: {speaker_id}")
+        for target_tag in tqdm(target_tags, desc="generate anki tag"):
+            
+        
     except Exception:
         pass
     
