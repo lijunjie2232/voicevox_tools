@@ -10,7 +10,7 @@ class SpeakerStyle:
         self.type = type
 
     def __repr__(self):
-        return self.to_dict()
+        return self.__str__()
 
     def __str__(self):
         return str(self.to_dict())
@@ -36,7 +36,7 @@ class SpeakerSupportedFeatures:
         return str(self.to_dict())
 
     def __repr__(self):
-        return self.to_dict()
+        return self.__str__()
 
 
 class SpeakerStylesInfo:
@@ -64,7 +64,7 @@ class SpeakerStylesInfo:
         }
 
     def __repr__(self):
-        return self.to_dict()
+        return self.__str__()
 
     def __str__(self):
         return str(self.to_dict())
@@ -200,6 +200,7 @@ class VoicevoxEngine:
         speaker_uuid: str = None,
         name: str = None,
         amb_match: bool = True,
+        return_dict: bool = False,
     ):
         assert speaker_uuid or name, Exception(
             "at least one of speaker_uuid or name is required"
@@ -208,19 +209,22 @@ class VoicevoxEngine:
         def uuid_filter(speaker):
             if not speaker_uuid:
                 return True
-            return speaker["speaker_uuid"] == speaker_uuid
+            return speaker.speaker_uuid == speaker_uuid
 
         def name_filter(speaker):
             if not name:
                 return True
             if amb_match:
-                return name.lower() in speaker["name"].lower()
-            return speaker["name"] == name
+                return name.lower() in speaker.name.lower()
+            return speaker.name == name
 
         def speaker_filter(speaker):
             return uuid_filter(speaker) and name_filter(speaker)
 
-        speaker = list(filter(speaker_filter, self.speakers))
+        if return_dict:
+            speaker = [i.to_dict() for i in filter(speaker_filter, self.speakers)]
+        else:
+            speaker = list(filter(speaker_filter, self.speakers))
 
         return speaker
 

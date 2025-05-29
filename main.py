@@ -94,12 +94,23 @@ def main(args, hook_params):
             if args.query_only:
                 pprint(speaker_styles)
                 return
-            if len(speaker_style) > 1:
-                pprint(speaker_styles)
-                pprint("speaker_uuid or speaker_name is ambiguous.")
-                speaker_id = int(input("Press specify speaker id to continue: "))
+            if len(speaker_styles) > 1:
+                # pprint(speaker_styles)
+                # pprint("speaker_uuid or speaker_name is ambiguous.")
+                # speaker_id = int(input("Press specify speaker id to continue: "))
+                for ss in speaker_styles:
+                    print("**********************************")
+                    print(f"name: {ss.name}")
+                    print(f"speaker_uuid: {ss.speaker_uuid}")
+                    print("------------- styles -------------")
+                    pprint(ss.styles)
+                    print("------- supported features -------")
+                    pprint(ss.supported_features)
+                    print("----------------------------------")
+                    print(f"version: {ss.version}")
+                    print("**********************************")
             else:
-                speaker_id = speaker_style[0]["speaker_id"]
+                speaker_id = speaker_styles[0]
 
 
 if __name__ == "__main__":
