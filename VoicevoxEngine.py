@@ -217,15 +217,10 @@ class VoicevoxEngine:
                 return name.lower() in speaker["name"].lower()
             return speaker["name"] == name
 
-        def speaker_filter(args):
-            speaker, _ = args
+        def speaker_filter(speaker):
             return uuid_filter(speaker) and name_filter(speaker)
 
-        speaker = list(
-            filter(speaker_filter, zip(self.speakers, range(len(self.speakers))))
-        )
-        if len(speaker) == 0:
-            raise Exception("speaker not found")
+        speaker = list(filter(speaker_filter, self.speakers))
 
         return speaker
 
@@ -291,7 +286,7 @@ if __name__ == "__main__":
     )
     pprint(speaker_style)
     for ss in speaker_style:
-        SpeakerStyle(**ss)
+        SpeakerStylesInfo(**ss)
     v.speaker_init(speaker=23, skip_reinit=True)
     # params = v.audio_query(23, "こんにちは")
 
