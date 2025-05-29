@@ -225,23 +225,25 @@ def main(args, params_hook):
         ],
     )
     decks = [
-        genanki.Deck(deck_id + idx, f"JLPT単語::{target_tags[i]}")
-        for idx, i in enumerate(target_tags)
+        genanki.Deck(deck_id + idx, f"JLPT単語::{tag}")
+        for idx, tag in enumerate(target_tags)
     ]
     media_files = []
 
-    engine.speaker_init(
-        speaker_id=speaker_id,
-    )
+    for speaker_id in speaker_ids:
+        engine.speaker_init(
+            speaker=speaker_id,
+        )
+        print(f"init speaker: {speaker_id}")
 
     a_ctx = """[sound:%s]""" * len(speaker_ids)
     b_ctx = """<h1>%s</h1><br>"""
-    print(f"speaker_id: {speaker_id}")
+
     for idx, target_tag in enumerate(tqdm(target_tags, desc="generate anki tag")):
         deck = decks[idx]
         words = []
         with open(txt_dir / f"{target_tag}.txt", "r", encoding="utf-8") as f:
-            words = f.read().strip().split("/n")
+            words = f.read().strip().split("\n")
             for line in f:
                 words.append(line.strip())
             for word in tqdm(words, desc="generate anki words"):
@@ -249,7 +251,7 @@ def main(args, params_hook):
                 resources = []
                 for speaker_id in speaker_ids:
                     file_path = cache_dir / f"{file_name}_{speaker_id}.wav"
-                    if not file_path.is_file()
+                    if not file_path.is_file():
                         engine.tts(
                             speaker=speaker_id,
                             text=word,
@@ -260,8 +262,8 @@ def main(args, params_hook):
                     resources.append(file_path.name)
                     media_files.append(file_path.__str__())
                 resources = tuple(resources)
-                a = a_ctx%resources
-                b = b_ctx%word + a
+                a = a_ctx % resources
+                b = b_ctx % word + a
                 note = genanki.Note(
                     model=model,
                     fields=[
@@ -276,7 +278,6 @@ def main(args, params_hook):
     my_package = genanki.Package(decks)
     my_package.media_files = media_files
     my_package.write_to_file("mn_cards.apkg")
-
 
 
 if __name__ == "__main__":
