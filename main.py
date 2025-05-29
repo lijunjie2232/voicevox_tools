@@ -92,6 +92,9 @@ def main(args, hook_params):
     # get args
     out_dir = Path(args.out_dir)
     txt_file = Path(args.txt)
+    assert txt_file.is_file(), "txt_file is not found or not a file"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
     speaker_id = args.speaker_id
