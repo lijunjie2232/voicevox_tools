@@ -4,7 +4,6 @@ from pathlib import Path
 from tqdm import tqdm
 from pprint import pprint
 
-
 def get_args():
     parser = argparse.ArgumentParser()
 
@@ -17,8 +16,8 @@ def get_args():
     parser.add_argument(
         "--txt",
         type=str,
-        default="sample.txt",
-        help="input file of word list in txt format",
+        default="txt",
+        help="input file of word list in txt format or a dir contains txt file(s)",
     )
     parser.add_argument(
         "--out_dir",
@@ -60,6 +59,19 @@ def get_args():
         action="store_true",
         help="query speaker info only",
     )
+    parser.add_argument(
+        "--model_id",
+        type=int,
+        default=1607362319,
+        help="model id of anki",
+    )
+    parser.add_argument(
+        "--deck_id",
+        type=int,
+        default=2059400510,
+        help="model id of anki",
+    )
+    
 
     args, extra_params = parser.parse_known_args()
     hook_params = {}
@@ -90,10 +102,10 @@ def main(args, hook_params):
     # init voicevox engine
     engine = VoicevoxEngine(base_url=args.base_url)
     # get args
-    out_dir = Path(args.out_dir)
-    txt_file = Path(args.txt)
-    assert txt_file.is_file(), "txt_file is not found or not a file"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = Path(args.out_dir)
+    txt = Path(args.txt)
+    assert txt.exists(), "txt_file is not found"
+    cache_dir.mkdir(parents=True, exist_ok=True)
     
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name

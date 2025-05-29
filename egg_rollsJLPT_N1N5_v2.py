@@ -1,4 +1,5 @@
 import sqlite3
+import re
 from pathlib import Path
 
 if __name__ == "__main__":
@@ -14,6 +15,12 @@ if __name__ == "__main__":
 
     for tag, sfld in data:
         tags = [t.split("::")[1] for t in tag.strip().split(" ")]
+        if sfld.startswith("〜"):
+            sfld = sfld[1:]
+        if sfld.endswith("〜"):
+            sfld = sfld[:-1]
+        sfld = re.sub(r"\[.*?\]", "", sfld)
+        sfld = re.sub(r"\(.*?\)", "", sfld)
         for idx, target_tag in enumerate(target_tags):
             if target_tag in tags:
                 words[idx].append(sfld)
@@ -21,6 +28,6 @@ if __name__ == "__main__":
 
     for i in range(len(target_tags)):
         print(target_tags[i], len(words[i]))
-        with open(f"{target_tags[i]}.txt", "w") as f:
+        with open(f"txt/{target_tags[i]}.txt", "w") as f:
             f.write("\n".join(words[i]))
     pass
