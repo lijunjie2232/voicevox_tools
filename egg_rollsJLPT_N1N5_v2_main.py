@@ -239,14 +239,27 @@ def main(args, params_hook):
     a_ctx = """[sound:%s]""" * len(speaker_ids)
     b_ctx = """<h1>%s</h1><br>"""
 
-    for idx, target_tag in enumerate(tqdm(target_tags, desc="generate anki tag")):
+    for idx, target_tag in enumerate(
+        tqdm(
+            target_tags,
+            desc="generate anki tag",
+        )
+    ):
         deck = decks[idx]
         words = []
-        with open(txt_dir / f"{target_tag}.txt", "r", encoding="utf-8") as f:
+        with open(
+            txt_dir / f"{target_tag}.txt",
+            "r",
+            encoding="utf-8",
+        ) as f:
             words = f.read().strip().split("\n")
             for line in f:
                 words.append(line.strip())
-            for word in tqdm(words, desc="generate anki words"):
+            for word in tqdm(
+                words,
+                desc="generate anki words",
+                leave=False,
+            ):
                 file_name = word_cache.get_id(word)
                 resources = []
                 for speaker_id in speaker_ids:
@@ -277,7 +290,7 @@ def main(args, params_hook):
     # 生成APKG文件
     my_package = genanki.Package(decks)
     my_package.media_files = media_files
-    my_package.write_to_file("mn_cards.apkg")
+    my_package.write_to_file("jlpt_cards.apkg")
 
 
 if __name__ == "__main__":
