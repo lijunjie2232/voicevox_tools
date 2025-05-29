@@ -222,11 +222,9 @@ class VoicevoxEngine:
             return uuid_filter(speaker) and name_filter(speaker)
 
         if return_dict:
-            speaker = [i.to_dict() for i in filter(speaker_filter, self.speakers)]
-        else:
-            speaker = list(filter(speaker_filter, self.speakers))
+            return [i.to_dict() for i in filter(speaker_filter, self.speakers)]
 
-        return speaker
+        return list(filter(speaker_filter, self.speakers))
 
     def speaker_init_check(self, **kwargs):
         """
@@ -286,7 +284,7 @@ if __name__ == "__main__":
     speakers = v.get_speakers()
     speaker_info = v.get_speaker_info("67d5d8da-acd7-4207-bb10-b5542d3a663b")
     speaker_style = v.get_speaker_style(
-        speaker_uuid="67d5d8da-acd7-4207-bb10-b5542d3a663b",
+        speaker_uuid="67d5d8da-acd7-4207-bb10-b5542d3a663b", return_dict=True
     )
     pprint(speaker_style)
     # for ss in speaker_style:
