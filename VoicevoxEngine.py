@@ -80,7 +80,7 @@ class VoicevoxEngine:
         self.session = requests.Session()
         self.base_url = base_url
         self.device = self.check_devices(device)
-        self.speakers = self.get_speakers()
+        self.speakers = [SpeakerStylesInfo(**ss) for ss in self.get_speakers()]
         pass
 
     def req(self, *args, **kwargs):
@@ -285,8 +285,8 @@ if __name__ == "__main__":
         speaker_uuid="67d5d8da-acd7-4207-bb10-b5542d3a663b",
     )
     pprint(speaker_style)
-    for ss in speaker_style:
-        SpeakerStylesInfo(**ss)
+    # for ss in speaker_style:
+    #     SpeakerStylesInfo(**ss)
     v.speaker_init(speaker=23, skip_reinit=True)
     # params = v.audio_query(23, "こんにちは")
 
