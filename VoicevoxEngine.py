@@ -125,13 +125,15 @@ class VoicevoxEngine:
             return_type="content",
         )
 
+    def refresh_speaker(self):
+        self.speakers = self.get_speakers()
+
     def get_speaker_style(
         self,
         speaker_uuid: str = None,
         name: str = None,
         amb_match: bool = True,
     ):
-        speakers = self.get_speakers()
         assert speaker_uuid or name, Exception(
             "at least one of speaker_uuid or name is required"
         )
@@ -152,7 +154,7 @@ class VoicevoxEngine:
             speaker, _ = args
             return uuid_filter(speaker) and name_filter(speaker)
 
-        speaker = list(filter(speaker_filter, zip(speakers, range(len(speakers)))))
+        speaker = list(filter(speaker_filter, zip(self.speakers, range(len(self.speakers)))))
         if len(speaker) == 0:
             raise Exception("speaker not found")
 
