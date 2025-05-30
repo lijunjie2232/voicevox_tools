@@ -289,7 +289,7 @@ if __name__ == "__main__":
     pprint(speaker_style)
     # for ss in speaker_style:
     #     SpeakerStylesInfo(**ss)
-    v.speaker_init(speaker=23, skip_reinit=True)
+    v.speaker_init(speaker=13, skip_reinit=True)
     # params = v.audio_query(23, "こんにちは")
 
     # pprint(params)

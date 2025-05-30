@@ -193,6 +193,8 @@ def main(args, params_hook):
             ]
     elif speaker_id > 0:
         speaker_ids = [speaker_id]
+    else:
+        speaker_ids = [int(i) for i in speaker_ids]
 
     # 创建一个模型
     model_id = args.model_id
@@ -268,7 +270,7 @@ def main(args, params_hook):
                         engine.tts(
                             speaker=speaker_id,
                             text=word,
-                            params_hook=params_hook,
+                            params_hook=params_hook[speaker_id],
                             output=file_path,
                         )
                     assert file_path.is_file(), "file generates error"
@@ -294,5 +296,9 @@ def main(args, params_hook):
 
 
 if __name__ == "__main__":
-    args, params_hook = get_args()
+    args, _ = get_args()
+    params_hook = {
+        13: {"pitchScale": 0.1},
+        23: {},
+    }
     main(args, params_hook)

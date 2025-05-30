@@ -21,7 +21,7 @@ if __name__ == "__main__":
             sfld = sfld[:-1]
         sfld = re.sub(r"\[.*?\]", "", sfld)
         sfld = re.sub(r"\(.*?\)", "", sfld)
-        sfld = sfld.strip()
+        sfld = sfld.replace("　", "").replace(" ", "")
         for idx, target_tag in enumerate(target_tags):
             if target_tag in tags:
                 words[idx].append(sfld)
