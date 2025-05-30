@@ -111,7 +111,7 @@ class WordCache:
         self.path = Path(path)
         self.cache = {}
         self.count = -1
-        self.just_long = 16
+        self.just_long = 6
         self.init()
 
     def init(self):
