@@ -46,6 +46,7 @@ options:
 - `--base_url` is the base url of voicevox engine, `http://localhost:50021` by default.
 - `--speaker_name` and `--speaker_uuid` is the speakers' name and uuid, one uuid is certain to specify a speaker, however name supports partial match if `--exact_name` is not specifie, `--speaker_style` means there is more than one model of one speaker.
 - if `--speaker_id` is specified, only one speaker modle will be used to generate audio, then if `--speaker_id` not spcified but `--speaker_ids` is specified, all speaker models specified by `--speaker_ids` will be used to generate audio.
+- This is said that one speaker can have multiple models with different styles, but one model only has one `speaker_id` and one speaker only has one `speaker_name` and one `speaker_uuid`.
 
 example:
 
