@@ -6,8 +6,7 @@ tools for voicevox
 - `main.py` show an example to generate audio files from txt file(s), one line in a txt file will be regarded as one sentence and generate one sentence.
 - `egg_rollsJLPT_N1N5_v2_main.py` is an example to generate audio files from txt file(s) and then generate anki card with these audio.
 
-!!! **`VoicevoxEngine` should work with voicevox engine and tested on version 0.23.0, version larger than 0.23.0 might work too in theory, download voicevox engine from [official repo](https://github.com/VOICEVOX/
-voicevox_engine/releases/tag/0.23.0).**
+!!! **`VoicevoxEngine` should work with voicevox engine and tested on version 0.23.0, version larger than 0.23.0 might work too in theory, download voicevox engine from [official repo](https://github.com/VOICEVOX/voicevox_engine/releases/tag/0.23.0).**
 
 ## Requirements
 
