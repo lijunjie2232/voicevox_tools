@@ -60,6 +60,12 @@ def get_args():
         help="speaker uuid",
     )
     parser.add_argument(
+        "--params_hook",
+        type=str,
+        default="params_hook.json",
+        help="specified json path to load params hook from file",
+    )
+    parser.add_argument(
         "--exact_name",
         action="store_true",
         help="query speaker name by exact match",
@@ -69,28 +75,8 @@ def get_args():
         action="store_true",
         help="query speaker info only",
     )
-    parser.add_argument(
-        "--model_id",
-        type=int,
-        default=1607362319,
-        help="model id of anki",
-    )
-    parser.add_argument(
-        "--deck_id",
-        type=int,
-        default=2059400510,
-        help="model id of anki",
-    )
 
-    args, extra_params = parser.parse_known_args()
-    params_hook = {}
-    for i in range(0, len(extra_params), 2):
-        if i + 1 >= len(extra_params):
-            raise ValueError("Unmatched argument provided.")
-        key = extra_params[i].lstrip("-")
-        value = extra_params[i + 1]
-        params_hook[key] = value
-    return args, params_hook
+    return parser.parse_args()
 
 
 def print_speaker_styles(speaker_styles):
@@ -142,15 +128,30 @@ class WordCache:
             json.dump(self.to_dict(), f, indent=4, ensure_ascii=False)
 
 
-def main(args, params_hook):
+def main(args):
     # init voicevox engine
     engine = VoicevoxEngine(base_url=args.base_url)
     # get args
     cache_dir = Path(args.out_dir)
     word_cache_file = cache_dir / "voice_cache.json"
-    txt_file = Path(args.txt_file)
+    txt_file = Path(args.input)
     assert txt_file.exists(), f"{txt_file.absolute()} is not found"
     cache_dir.mkdir(parents=True, exist_ok=True)
+
+    params_hook = {}
+    try:
+        print(f"try to load params hook from  {args.params_hook}")
+        with open(args.params_hook, "r", encoding="utf-8") as f:
+            params_hook = json.load(f)
+    except FileNotFoundError:
+        print(f"{args.params_hook} is not found")
+    except json.JSONDecodeError:
+        print(f"{args.params_hook} is not valid json")
+    except Exception as e:
+        print(f"load params hook failed: {e}")
+    print("params hook:")
+    pprint(params_hook)
+    
 
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
@@ -210,7 +211,8 @@ def main(args, params_hook):
     txt_files = [txt_file]
     if txt_file.is_dir():
         txt_files = list(txt_file.glob("*.txt"))
-        
+
+    return
     for txt_file in tqdm(txt_files):
         with open(
             txt_file,
@@ -231,7 +233,11 @@ def main(args, params_hook):
                         engine.tts(
                             speaker=speaker_id,
                             text=word,
-                            params_hook=params_hook[speaker_id],
+                            params_hook=(
+                                params_hook[str(speaker_id)]
+                                if speaker_id in params_hook
+                                else {}
+                            ),
                             output=file_path,
                         )
                     assert file_path.is_file(), "file generates error"
@@ -242,9 +248,5 @@ def main(args, params_hook):
 
 
 if __name__ == "__main__":
-    args, _ = get_args()
-    params_hook = {
-        13: {"pitchScale": 0.1},
-        23: {},
-    }
-    main(args, params_hook)
+    args = get_args()
+    main(args)
