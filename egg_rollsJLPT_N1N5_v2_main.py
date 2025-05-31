@@ -5,7 +5,7 @@ from tqdm import tqdm
 from pprint import pprint
 import genanki
 import json
-from .Compressor import Compressor
+from Compressor import Compressor
 
 
 def get_args():
