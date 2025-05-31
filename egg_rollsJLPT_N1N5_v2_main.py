@@ -5,6 +5,7 @@ from tqdm import tqdm
 from pprint import pprint
 import genanki
 import json
+from .Compressor import Compressor
 
 
 def get_args():
@@ -231,6 +232,8 @@ def main(args, params_hook):
         for idx, tag in enumerate(target_tags)
     ]
     media_files = []
+    
+    compressor = Compressor()
 
     for speaker_id in speaker_ids:
         engine.speaker_init(
@@ -266,6 +269,7 @@ def main(args, params_hook):
                 resources = []
                 for speaker_id in speaker_ids:
                     file_path = cache_dir / f"{file_name}_{speaker_id}.wav"
+                    cfile_path =  cache_dir / f"{file_path.stem}.mp3"
                     if not file_path.is_file():
                         engine.tts(
                             speaker=speaker_id,
@@ -274,8 +278,11 @@ def main(args, params_hook):
                             output=file_path,
                         )
                     assert file_path.is_file(), "file generates error"
-                    resources.append(file_path.name)
-                    media_files.append(file_path.__str__())
+                    if not cfile_path.is_file():
+                        compressor.compress(file_path, cfile_path)
+                    assert cfile_path.is_file(), "compressed file generates error"
+                    resources.append(cfile_path.name)
+                    media_files.append(cfile_path.__str__())
                 resources = tuple(resources)
                 a = a_ctx % resources
                 b = b_ctx % word + a
