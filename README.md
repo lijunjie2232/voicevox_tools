@@ -11,8 +11,9 @@ voicevox_engine/releases/tag/0.23.0).**
 
 ## Requirements
 
+- `git clone https://github.com/lijunjie2232/voicevox_tools.git && cd voicevox_tools` to clone this project and enter its directory.
 - `pip install -r requirements.txt` to install requirements of voicevox engine.
-- `pip install -r requirements_anki.txt` to install requirements for generating anki cards.
+- (optional) `pip install -r requirements_anki.txt` to install requirements for generating anki cards.
 
 ## Usage
 
