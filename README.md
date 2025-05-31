@@ -3,7 +3,7 @@ tools for voicevox
 
 - `VoicevoxEngine` is a tool for generating audio of text via voicevox engine
 - `Compressor` is a tool for compressing audio files
-- `main.py` show a example to generate audio from txt file(s)
+- `main.py` show a example to generate audio files from txt file(s), one line in a txt file will be regarded as one sentence and generate one sentence.
 
 !!! **`VoicevoxEngine` should work with voicevox engine and tested on version 0.23.0, version larger than 0.23.0 might work too in theory, download voicevox engine from [official repo](https://github.com/VOICEVOX/voicevox_engine/releases/tag/0.23.0)**
 
