@@ -7,7 +7,7 @@ class Compressor:
         self.out_fmt = out_fmt
         self.bitrate = bitrate
 
-    def compress(self, in_file, out, overwrite=True):
+    def compress(self, in_file, out, overwrite=False):
         if Path(out).is_dir():
             out = out / f"{in_file.stem}.{self.out_fmt}"
         if Path(out).is_file() and not overwrite:
