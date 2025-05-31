@@ -3,7 +3,6 @@ from VoicevoxEngine import VoicevoxEngine
 from pathlib import Path
 from tqdm import tqdm
 from pprint import pprint
-import genanki
 import json
 from Compressor import Compressor
 
@@ -133,7 +132,6 @@ def main(args):
     engine = VoicevoxEngine(base_url=args.base_url)
     # get args
     cache_dir = Path(args.out_dir)
-    word_cache_file = cache_dir / "voice_cache.json"
     txt_file = Path(args.input)
     assert txt_file.exists(), f"{txt_file.absolute()} is not found"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -151,7 +149,6 @@ def main(args):
         print(f"load params hook failed: {e}")
     print("params hook:")
     pprint(params_hook)
-    
 
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
@@ -198,8 +195,6 @@ def main(args):
     else:
         speaker_ids = [int(i) for i in speaker_ids]
 
-    word_cache = WordCache(word_cache_file)
-
     compressor = Compressor()
 
     for speaker_id in speaker_ids:
@@ -212,13 +207,16 @@ def main(args):
     if txt_file.is_dir():
         txt_files = list(txt_file.glob("*.txt"))
 
-    return
     for txt_file in tqdm(txt_files):
         with open(
             txt_file,
             "r",
             encoding="utf-8",
         ) as f:
+            output_dir = cache_dir / txt_file.stem
+            output_dir.mkdir(exist_ok=True, parents=True)
+            word_cache_file = output_dir / "tts_cache.json"
+            word_cache = WordCache(word_cache_file)
             words = f.read().strip().split("\n")
             for word in tqdm(
                 words,
@@ -227,8 +225,8 @@ def main(args):
             ):
                 file_name = word_cache.get_id(word)
                 for speaker_id in speaker_ids:
-                    file_path = cache_dir / f"{file_name}_{speaker_id}.wav"
-                    cfile_path = cache_dir / f"{file_path.stem}.mp3"
+                    file_path = output_dir / f"{file_name}_{speaker_id}.wav"
+                    cfile_path = output_dir / f"{file_path.stem}.mp3"
                     if not file_path.is_file():
                         engine.tts(
                             speaker=speaker_id,
@@ -244,7 +242,7 @@ def main(args):
                     if not cfile_path.is_file():
                         compressor.compress(file_path, cfile_path)
                     assert cfile_path.is_file(), "compressed file generates error"
-        word_cache.save()
+            word_cache.save()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 from Compressor import Compressor
-from multiprocessing.pool import ThreadPool as Pool
+from multiprocessing.pool import ThreadPool Pool
 from pathlib import Path
 from itertools import repeat
 from tqdm import tqdm

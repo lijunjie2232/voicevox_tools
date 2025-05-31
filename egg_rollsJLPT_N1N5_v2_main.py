@@ -258,8 +258,6 @@ def main(args, params_hook):
             encoding="utf-8",
         ) as f:
             words = f.read().strip().split("\n")
-            for line in f:
-                words.append(line.strip())
             for word in tqdm(
                 words,
                 desc="generate anki words",
