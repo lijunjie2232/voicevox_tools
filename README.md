@@ -5,7 +5,13 @@ tools for voicevox
 - `Compressor` is a tool for compressing audio files
 - `main.py` show a example to generate audio files from txt file(s), one line in a txt file will be regarded as one sentence and generate one sentence.
 
-!!! **`VoicevoxEngine` should work with voicevox engine and tested on version 0.23.0, version larger than 0.23.0 might work too in theory, download voicevox engine from [official repo](https://github.com/VOICEVOX/voicevox_engine/releases/tag/0.23.0)**
+!!! **`VoicevoxEngine` should work with voicevox engine and tested on version 0.23.0, version larger than 0.23.0 might work too in theory, download voicevox engine from [official repo](https://github.com/VOICEVOX/
+voicevox_engine/releases/tag/0.23.0)**
+
+## Requirements
+
+- `pip install -r requirements.txt` to install requirements of voicevox engine
+-  `pip install -r requirements_anki.txt` to install requirements for generating anki cards
 
 ## Usage
 
@@ -34,3 +40,6 @@ options:
   --exact_name          query speaker name by exact match
   --query_only          query speaker info only
 ```
+
+- first start voicevox engine and then run `main.py`
+- `--base_url` is the base url of voicevox engine, `http://localhost:50021` by default
