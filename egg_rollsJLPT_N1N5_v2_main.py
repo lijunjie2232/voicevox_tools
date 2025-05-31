@@ -232,7 +232,7 @@ def main(args, params_hook):
         for idx, tag in enumerate(target_tags)
     ]
     media_files = []
-    
+
     compressor = Compressor()
 
     for speaker_id in speaker_ids:
@@ -267,7 +267,7 @@ def main(args, params_hook):
                 resources = []
                 for speaker_id in speaker_ids:
                     file_path = cache_dir / f"{file_name}_{speaker_id}.wav"
-                    cfile_path =  cache_dir / f"{file_path.stem}.mp3"
+                    cfile_path = cache_dir / f"{file_path.stem}.mp3"
                     if not file_path.is_file():
                         engine.tts(
                             speaker=speaker_id,
