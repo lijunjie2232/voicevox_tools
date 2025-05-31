@@ -43,3 +43,22 @@ options:
 
 - first start voicevox engine and then run `main.py`
 - `--base_url` is the base url of voicevox engine, `http://localhost:50021` by default
+- `--speaker_name` and `--speaker_uuid` is the speakers' name and uuid, one uuid is certain to specify a speaker, however name supports partial match if `--exact_name` is not specifie, `--speaker_style` means there is more than one model of one speaker.
+- if `--speaker_id` is specified, only one speaker modle will be used to generate audio, then if `--speaker_id` not spcified but `--speaker_ids` is specified, all speaker models specified by `--speaker_ids` will be used to generate audio
+
+example:
+
+1. query all speakers and styles
+    ```shell
+    python main.py --query_only
+    ```
+
+2. query style of one speaker by uuid
+    ```shell
+    python main.py --speaker_uuid 67d5d8da-acd7-4207-bb10-b5542d3a663b --query_only
+    ```
+
+3. to generate audio from txt files in `txt` dir using speaker `13` and `23`, output to `out` dir
+    ```shell
+    python main.py --speaker_ids 13 23 --input txt --out_dir out
+    ```
