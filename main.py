@@ -5,7 +5,7 @@ from tqdm import tqdm
 from pprint import pprint
 import json
 from Compressor import Compressor
-
+from copy import deepcopy
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -149,6 +149,13 @@ def main(args):
         print(f"load params hook failed: {e}")
     print("params hook:")
     pprint(params_hook)
+    
+    if "global" in params_hook:
+        global_hook = params_hook["global"]
+        for k in params_hook:
+            if k == "global":
+                continue
+            params_hook[k] = deepcopy(global_hook).update(params_hook[k])
 
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
