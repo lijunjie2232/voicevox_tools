@@ -1,4 +1,5 @@
 from pydub import AudioSegment
+from pathlib import Path
 
 
 class Compressor:
@@ -6,9 +7,13 @@ class Compressor:
         self.out_fmt = out_fmt
         self.bitrate = bitrate
 
-    def compress(self, in_file, out_file):
+    def compress(self, in_file, out, overwrite=True):
+        if Path(out).is_dir():
+            out = out / f"{in_file.stem}.{self.out_fmt}"
+        if Path(out).is_file() and not overwrite:
+            return
         sound = AudioSegment.from_wav(in_file)
-        sound.export(out_file, format=self.out_fmt, bitrate=self.bitrate)
+        sound.export(out, format=self.out_fmt, bitrate=self.bitrate)
 
 
 if __name__ == "__main__":
