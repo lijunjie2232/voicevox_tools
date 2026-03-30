@@ -87,6 +87,19 @@ def get_args():
         action="store_true",
         help="compress audio files to mp3",
     )
+    parser.add_argument(
+        "--compress_quality",
+        type=str,
+        default="small",
+        choices=["tiny", "small", "medium", "high"],
+        help="compression quality: tiny (smallest), small, medium, high (best quality)",
+    )
+    parser.add_argument(
+        "--use_ffmpeg",
+        action="store_true",
+        default=True,
+        help="use ffmpeg with VBR for better compression (default: enabled)",
+    )
 
     return parser.parse_args()
 
@@ -325,7 +338,14 @@ def main(args):
         logger.info(f"     ✓ Initialized speaker {speaker_id}")
     
     compressor = Compressor() if args.compress else None
-    logger.info(f"     MP3 compression: {'Enabled' if args.compress else 'Disabled'}")
+    
+    # Set compression quality
+    if compressor and args.compress:
+        compressor.set_quality(args.compress_quality)
+        logger.info(f"     MP3 compression: Enabled ({args.compress_quality} quality)")
+        logger.info(f"     FFmpeg VBR: {'Enabled' if args.use_ffmpeg else 'Disabled (using pydub)'}")
+    else:
+        logger.info(f"     MP3 compression: Disabled")
     logger.info("")
 
     # read and validate input jsonl
@@ -396,8 +416,17 @@ def main(args):
             if args.compress:
                 wav_file = file_path.with_suffix(".wav")
                 if wav_file.is_file():
-                    compressor.compress(wav_file, file_path)
+                    compressor.compress(
+                        in_file=wav_file,
+                        out_file=file_path,
+                        use_ffmpeg_optimized=args.use_ffmpeg
+                    )
                     assert file_path.is_file(), f"Failed to compress audio file: {file_path}"
+                    # Remove wav file to save space
+                    try:
+                        wav_file.unlink()
+                    except Exception as e:
+                        logger.info(f"     ⚠  Could not remove temp WAV file: {e}")
             
             audio_files.append(str(file_path))
         
