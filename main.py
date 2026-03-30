@@ -291,9 +291,11 @@ def main(args):
         sentence = entry["sentence"]
         audio_files = []
         
+        # Generate one UUID per sentence (not per speaker)
+        file_id = str(uuid.uuid4())[:8]
+        
         for speaker_id in speaker_ids:
-            # Generate unique filename
-            file_id = str(uuid.uuid4())[:8]
+            # Use the same file_id for all speakers of the same sentence
             file_ext = "mp3" if args.compress else "wav"
             file_name = f"{file_id}_speaker{speaker_id}.{file_ext}"
             file_path = out_dir / file_name
