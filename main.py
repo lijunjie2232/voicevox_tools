@@ -179,9 +179,20 @@ class WordCache:
 
 
 def main(args):
-    # init voicevox engine
-    engine = VoicevoxEngine(base_url=args.base_url)
     logger = setup_logging()
+    
+    # Print header
+    logger.info("="*60)
+    logger.info("Voicevox TTS JSONL Processor")
+    logger.info("="*60)
+    logger.info("")
+    
+    # init voicevox engine
+    logger.info("[1/5] Initializing Voicevox Engine...")
+    logger.info(f"     Base URL: {args.base_url}")
+    engine = VoicevoxEngine(base_url=args.base_url)
+    logger.info("     ✓ Engine initialized successfully")
+    logger.info("")
     
     # get args
     input_file = Path(args.input)
@@ -190,104 +201,154 @@ def main(args):
     
     assert input_file.exists(), f"{input_file.absolute()} is not found"
     out_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info("[2/5] Configuration loaded:")
+    logger.info(f"     Input file:  {input_file.absolute()}")
+    logger.info(f"     Output file: {output_file.absolute()}")
+    logger.info(f"     Audio dir:   {out_dir.absolute()}")
+    logger.info("")
 
     params_hook = {}
     try:
-        logger.info(f"try to load params hook from  {args.params_hook}")
+        logger.info(f"[3/5] Loading params hook from {args.params_hook}...")
         with open(args.params_hook, "r", encoding="utf-8") as f:
             params_hook = json.load(f)
+        logger.info(f"     ✓ Params hook loaded successfully")
     except FileNotFoundError:
-        logger.info(f"{args.params_hook} is not found")
+        logger.info(f"     ⚠ {args.params_hook} not found (using default params)")
     except json.JSONDecodeError:
-        logger.info(f"{args.params_hook} is not valid json")
+        logger.info(f"     ⚠ {args.params_hook} is not valid json (using default params)")
     except Exception as e:
-        logger.info(f"load params hook failed: {e}")
+        logger.info(f"     ⚠ Failed to load params hook: {e}")
     
     if "global" in params_hook:
         global_hook = params_hook["global"]
-        # for k in params_hook:
-        #     if k == "global":
-        #         continue
-        #     params_hook[k] = deepcopy(global_hook).update(params_hook[k])
         # copy global_hook to each speaker hook
         for speaker_id in params_hook:
             if speaker_id == "global":
                 continue
             params_hook[speaker_id].update(global_hook)
-    logger.info("params hook:")
+    
+    logger.info("     Params hook configuration:")
     pprint(params_hook)
+    logger.info("")
 
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
     speaker_id = args.speaker_id
     speaker_ids = args.speaker_ids
 
+    logger.info("[4/5] Speaker initialization:")
+    logger.info(f"     Speaker UUID: {speaker_uuid if speaker_uuid else 'N/A'}")
+    logger.info(f"     Speaker Name: {speaker_name if speaker_name else 'N/A'}")
+    logger.info(f"     Speaker IDs:  {speaker_ids}")
+    logger.info("")
+    
     # init speaker id
     if speaker_id < 0 and not speaker_ids:  # get speaker_id first
         if not speaker_uuid and not speaker_name:
             if args.query_only:
                 speakers = engine.speakers
-                # pprint(speakers)
-                print_speaker_styles(speakers)
+                print_speaker_styles(speakers, logger)
                 return
             else:
                 raise ValueError(
                     "speaker_uuid or speaker_name must be provided or specify query_only."
                 )
         else:
-            logger.info("----------- match by -----------")
-            logger.info(f"speaker uuid: {speaker_uuid}")
-            logger.info(f"speaker name: {speaker_name}")
-            logger.info(f"exactly match: {args.exact_name}")
-            logger.info("--------------------------------")
+            logger.info("     Matching criteria:")
+            logger.info(f"       - Exact match: {args.exact_name}")
+            logger.info("")
             speaker_styles = engine.get_speaker_style(
                 speaker_uuid=speaker_uuid,
                 name=speaker_name,
                 amb_match=not args.exact_name,
             )
             if len(speaker_styles) == 0:
-                logger.info("no matched speaker found.")
+                logger.info("     ✗ No matched speaker found.")
                 return
+            
+            # Display matched speaker styles info (not in query mode)
+            logger.info("     Matched speakers:")
+            for ss in speaker_styles:
+                logger.info(f"       - {ss.name} (UUID: {ss.speaker_uuid})")
+                for style in ss.styles:
+                    logger.info(f"         • Style ID: {style.id}, Name: {style.name}")
+            logger.info("")
+            
             print_speaker_styles(speaker_styles, logger)
             if args.query_only:
                 return
-            speaker_ids = [
-                int(i)
-                for i in input(
-                    "Press specify speaker id to continue, if more than one, split with ',': "
-                ).split(",")
-            ]
+            speaker_ids_input = input("\nEnter speaker ID(s) to continue (comma-separated): ")
+            speaker_ids = [int(i.strip()) for i in speaker_ids_input.split(",")]
     elif speaker_id > 0:
         speaker_ids = [speaker_id]
     else:
         speaker_ids = [int(i) for i in speaker_ids]
-
-    compressor = Compressor() if args.compress else None
-
+    
+    # Display detailed speaker info for specified speakers (not in query mode)
+    if not args.query_only:
+        logger.info("     Speaker details:")
+        for sid in speaker_ids:
+            try:
+                # Get speaker info from engine
+                speaker_info = None
+                for ss in engine.speakers:
+                    for style in ss.styles:
+                        if style.id == sid:
+                            speaker_info = {
+                                "name": ss.name,
+                                "uuid": ss.speaker_uuid,
+                                "style_name": style.name,
+                                "style_id": style.id
+                            }
+                            break
+                    if speaker_info:
+                        break
+                
+                if speaker_info:
+                    logger.info(f"       Speaker {sid}:")
+                    logger.info(f"         Name: {speaker_info['name']}")
+                    logger.info(f"         UUID: {speaker_info['uuid']}")
+                    logger.info(f"         Style: {speaker_info['style_name']}")
+                else:
+                    logger.info(f"       Speaker {sid}: Unknown speaker")
+            except Exception as e:
+                logger.info(f"       Speaker {sid}: Error getting details - {e}")
+        logger.info("")
+    
+    logger.info(f"     Final speaker IDs: {speaker_ids}")
+    
+    # Initialize all speakers
     for speaker_id in speaker_ids:
-        engine.speaker_init(
-            speaker=speaker_id,
-        )
-        logger.info(f"init speaker: {speaker_id}")
+        engine.speaker_init(speaker=speaker_id)
+        logger.info(f"     ✓ Initialized speaker {speaker_id}")
+    
+    compressor = Compressor() if args.compress else None
+    logger.info(f"     MP3 compression: {'Enabled' if args.compress else 'Disabled'}")
+    logger.info("")
 
     # read and validate input jsonl
-    logger.info(f"Validating input JSONL file: {input_file.absolute()}")
+    logger.info("[5/5] Validating and processing input JSONL file...")
+    logger.info(f"     File: {input_file.absolute()}")
     valid_lines, errors = validate_jsonl_file(input_file)
     
     if errors:
-        logger.info(f"\n⚠️  Found {len(errors)} invalid line(s) in JSONL file:")
+        logger.info("")
+        logger.info(f"     ⚠ Found {len(errors)} invalid line(s):")
         for error in errors:
-            logger.info(f"  Line {error['line_num']}: {error['error']}")
-            logger.info(f"    Content: {error['content']}")
+            logger.info(f"       Line {error['line_num']}: {error['error']}")
+            logger.info(f"         Content: {error['content']}")
+        logger.info("")
         
         # Ask user if they want to continue
-        response = input("\nDo you want to continue processing valid lines only? (y/n): ")
+        response = input("     Continue with valid lines only? (y/n): ")
         if response.lower() != 'y':
             logger.info("Processing cancelled.")
             return
-        logger.info(f"\nContinuing with {len(valid_lines)} valid line(s)...\n")
+        logger.info(f"     Continuing with {len(valid_lines)} valid line(s)...\n")
     else:
-        logger.info(f"✓ JSONL file is valid. Found {len(valid_lines)} entries.\n")
+        logger.info(f"     ✓ JSONL file is valid ({len(valid_lines)} entries)\n")
     
     output_data = []
     total_entries = len(valid_lines)
@@ -350,8 +411,13 @@ def main(args):
         for entry in output_data:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     
-    logger.info(f"\nCompleted! Output written to {output_file.absolute()}")
-    logger.info(f"Audio files saved to {out_dir.absolute()}")
+    logger.info("="*60)
+    logger.info("Processing Complete!")
+    logger.info("="*60)
+    logger.info(f"✓ Output written to: {output_file.absolute()}")
+    logger.info(f"✓ Audio files saved to: {out_dir.absolute()}")
+    logger.info(f"✓ Total entries processed: {len(output_data)}")
+    logger.info("="*60)
 
 
 if __name__ == "__main__":
