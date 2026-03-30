@@ -2,12 +2,12 @@ import re
 import argparse
 from VoicevoxEngine import VoicevoxEngine
 from pathlib import Path
-from tqdm import tqdm
 from pprint import pprint
 import json
 from Compressor import Compressor
 from copy import deepcopy
 import uuid
+import logging
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -91,6 +91,16 @@ def get_args():
     return parser.parse_args()
 
 
+def setup_logging():
+    """Setup logging configuration."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(message)s',
+        handlers=[logging.StreamHandler()]
+    )
+    return logging.getLogger(__name__)
+
+
 def validate_jsonl_file(file_path):
     """Validate JSONL file and return valid lines and errors."""
     with open(file_path, "r", encoding="utf-8") as f:
@@ -117,18 +127,20 @@ def validate_jsonl_file(file_path):
     return valid_lines, errors
 
 
-def print_speaker_styles(speaker_styles):
+def print_speaker_styles(speaker_styles, logger=None):
+    if logger is None:
+        logger = setup_logging()
+    
     for sss in speaker_styles:
-
-        print(f"********************** {sss.name} **********************")
-        print(f"speaker_uuid: {sss.speaker_uuid}")
-        print("----------------------- styles -----------------------")
+        logger.info(f"********************** {sss.name} **********************")
+        logger.info(f"speaker_uuid: {sss.speaker_uuid}")
+        logger.info("----------------------- styles -----------------------")
         pprint(sss.styles)
-        print("----------------- supported features -----------------")
+        logger.info("----------------- supported features -----------------")
         pprint(sss.supported_features)
-        print("------------------------------------------------------")
-        print(f"version: {sss.version}")
-        print()
+        logger.info("------------------------------------------------------")
+        logger.info(f"version: {sss.version}")
+        logger.info("")
 
 
 class WordCache:
@@ -169,6 +181,7 @@ class WordCache:
 def main(args):
     # init voicevox engine
     engine = VoicevoxEngine(base_url=args.base_url)
+    logger = setup_logging()
     
     # get args
     input_file = Path(args.input)
@@ -180,15 +193,15 @@ def main(args):
 
     params_hook = {}
     try:
-        print(f"try to load params hook from  {args.params_hook}")
+        logger.info(f"try to load params hook from  {args.params_hook}")
         with open(args.params_hook, "r", encoding="utf-8") as f:
             params_hook = json.load(f)
     except FileNotFoundError:
-        print(f"{args.params_hook} is not found")
+        logger.info(f"{args.params_hook} is not found")
     except json.JSONDecodeError:
-        print(f"{args.params_hook} is not valid json")
+        logger.info(f"{args.params_hook} is not valid json")
     except Exception as e:
-        print(f"load params hook failed: {e}")
+        logger.info(f"load params hook failed: {e}")
     
     if "global" in params_hook:
         global_hook = params_hook["global"]
@@ -201,7 +214,7 @@ def main(args):
             if speaker_id == "global":
                 continue
             params_hook[speaker_id].update(global_hook)
-    print("params hook:")
+    logger.info("params hook:")
     pprint(params_hook)
 
     speaker_uuid = args.speaker_uuid
@@ -222,20 +235,20 @@ def main(args):
                     "speaker_uuid or speaker_name must be provided or specify query_only."
                 )
         else:
-            print("----------- match by -----------")
-            print(f"speaker uuid: {speaker_uuid}")
-            print(f"speaker name: {speaker_name}")
-            print(f"exactly match: {args.exact_name}")
-            print("--------------------------------")
+            logger.info("----------- match by -----------")
+            logger.info(f"speaker uuid: {speaker_uuid}")
+            logger.info(f"speaker name: {speaker_name}")
+            logger.info(f"exactly match: {args.exact_name}")
+            logger.info("--------------------------------")
             speaker_styles = engine.get_speaker_style(
                 speaker_uuid=speaker_uuid,
                 name=speaker_name,
                 amb_match=not args.exact_name,
             )
             if len(speaker_styles) == 0:
-                print("no matched speaker found.")
+                logger.info("no matched speaker found.")
                 return
-            print_speaker_styles(speaker_styles)
+            print_speaker_styles(speaker_styles, logger)
             if args.query_only:
                 return
             speaker_ids = [
@@ -255,35 +268,38 @@ def main(args):
         engine.speaker_init(
             speaker=speaker_id,
         )
-        print(f"init speaker: {speaker_id}")
+        logger.info(f"init speaker: {speaker_id}")
 
     # read and validate input jsonl
-    print(f"Validating input JSONL file: {input_file.absolute()}")
+    logger.info(f"Validating input JSONL file: {input_file.absolute()}")
     valid_lines, errors = validate_jsonl_file(input_file)
     
     if errors:
-        print(f"\n⚠️  Found {len(errors)} invalid line(s) in JSONL file:")
+        logger.info(f"\n⚠️  Found {len(errors)} invalid line(s) in JSONL file:")
         for error in errors:
-            print(f"  Line {error['line_num']}: {error['error']}")
-            print(f"    Content: {error['content']}")
+            logger.info(f"  Line {error['line_num']}: {error['error']}")
+            logger.info(f"    Content: {error['content']}")
         
         # Ask user if they want to continue
         response = input("\nDo you want to continue processing valid lines only? (y/n): ")
         if response.lower() != 'y':
-            print("Processing cancelled.")
+            logger.info("Processing cancelled.")
             return
-        print(f"\nContinuing with {len(valid_lines)} valid line(s)...\n")
+        logger.info(f"\nContinuing with {len(valid_lines)} valid line(s)...\n")
     else:
-        print(f"✓ JSONL file is valid. Found {len(valid_lines)} entries.\n")
+        logger.info(f"✓ JSONL file is valid. Found {len(valid_lines)} entries.\n")
     
     output_data = []
+    total_entries = len(valid_lines)
     
-    for line_num, line, entry in tqdm(valid_lines, desc="Processing JSONL entries"):
+    for idx, (line_num, line, entry) in enumerate(valid_lines, 1):
+        # Log progress in [completed/total] format
+        logger.info(f"[{idx}/{total_entries}] Processing entry at line {line_num}")
         
         # Check if sentence field exists
         if "sentence" not in entry:
             warning_msg = f"Warning: 'sentence' field not found at line {line_num}"
-            print(warning_msg)
+            logger.info(warning_msg)
             entry["_processing_error"] = warning_msg
             output_data.append(entry)
             continue
@@ -301,7 +317,7 @@ def main(args):
             file_path = out_dir / file_name
             
             # Generate TTS
-            print(f"Generating audio for: {sentence[:50]}...")
+            logger.info(f"Generating audio by speaker_{speaker_id} for: {sentence[:50]}...")
             engine.tts(
                 speaker=speaker_id,
                 text=sentence,
@@ -327,15 +343,15 @@ def main(args):
         # Add audio_files to the entry
         entry["audio_files"] = audio_files
         output_data.append(entry)
-        print(f"Generated {len(audio_files)} audio file(s) for entry")
+        logger.info(f"[{idx}/{total_entries}] Generated {len(audio_files)} audio file(s) for entry\n")
     
     # write output jsonl
     with open(output_file, "w", encoding="utf-8") as f:
         for entry in output_data:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     
-    print(f"\nCompleted! Output written to {output_file.absolute()}")
-    print(f"Audio files saved to {out_dir.absolute()}")
+    logger.info(f"\nCompleted! Output written to {output_file.absolute()}")
+    logger.info(f"Audio files saved to {out_dir.absolute()}")
 
 
 if __name__ == "__main__":
