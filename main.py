@@ -1,3 +1,4 @@
+import re
 import argparse
 from VoicevoxEngine import VoicevoxEngine
 from pathlib import Path
@@ -6,6 +7,7 @@ from pprint import pprint
 import json
 from Compressor import Compressor
 from copy import deepcopy
+import uuid
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -19,14 +21,20 @@ def get_args():
     parser.add_argument(
         "--input",
         type=str,
-        default="txt",
-        help="txt file or dir contains txt file(s)",
+        default="input.jsonl",
+        help="input jsonl file",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="output.jsonl",
+        help="output jsonl file with audio_files field",
     )
     parser.add_argument(
         "--out_dir",
         type=str,
-        default="output",
-        help="output directory",
+        default="output_audio",
+        help="output directory for audio files",
     )
     parser.add_argument(
         "--speaker_name",
@@ -74,8 +82,39 @@ def get_args():
         action="store_true",
         help="query speaker info only",
     )
+    parser.add_argument(
+        "--compress",
+        action="store_true",
+        help="compress audio files to mp3",
+    )
 
     return parser.parse_args()
+
+
+def validate_jsonl_file(file_path):
+    """Validate JSONL file and return valid lines and errors."""
+    with open(file_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    
+    valid_lines = []
+    errors = []
+    
+    for line_num, line in enumerate(lines, 1):
+        line = line.strip()
+        if not line:
+            continue
+        
+        try:
+            entry = json.loads(line)
+            valid_lines.append((line_num, line, entry))
+        except json.JSONDecodeError as e:
+            errors.append({
+                "line_num": line_num,
+                "error": f"Invalid JSON: {str(e)}",
+                "content": line[:100] + "..." if len(line) > 100 else line
+            })
+    
+    return valid_lines, errors
 
 
 def print_speaker_styles(speaker_styles):
@@ -130,11 +169,14 @@ class WordCache:
 def main(args):
     # init voicevox engine
     engine = VoicevoxEngine(base_url=args.base_url)
+    
     # get args
-    cache_dir = Path(args.out_dir)
-    txt_file = Path(args.input)
-    assert txt_file.exists(), f"{txt_file.absolute()} is not found"
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    input_file = Path(args.input)
+    output_file = Path(args.output)
+    out_dir = Path(args.out_dir)
+    
+    assert input_file.exists(), f"{input_file.absolute()} is not found"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     params_hook = {}
     try:
@@ -147,15 +189,20 @@ def main(args):
         print(f"{args.params_hook} is not valid json")
     except Exception as e:
         print(f"load params hook failed: {e}")
-    print("params hook:")
-    pprint(params_hook)
     
     if "global" in params_hook:
         global_hook = params_hook["global"]
-        for k in params_hook:
-            if k == "global":
+        # for k in params_hook:
+        #     if k == "global":
+        #         continue
+        #     params_hook[k] = deepcopy(global_hook).update(params_hook[k])
+        # copy global_hook to each speaker hook
+        for speaker_id in params_hook:
+            if speaker_id == "global":
                 continue
-            params_hook[k] = deepcopy(global_hook).update(params_hook[k])
+            params_hook[speaker_id].update(global_hook)
+    print("params hook:")
+    pprint(params_hook)
 
     speaker_uuid = args.speaker_uuid
     speaker_name = args.speaker_name
@@ -202,7 +249,7 @@ def main(args):
     else:
         speaker_ids = [int(i) for i in speaker_ids]
 
-    compressor = Compressor()
+    compressor = Compressor() if args.compress else None
 
     for speaker_id in speaker_ids:
         engine.speaker_init(
@@ -210,46 +257,83 @@ def main(args):
         )
         print(f"init speaker: {speaker_id}")
 
-    txt_files = [txt_file]
-    if txt_file.is_dir():
-        txt_files = list(txt_file.glob("*.txt"))
-
-    for txt_file in tqdm(txt_files):
-        with open(
-            txt_file,
-            "r",
-            encoding="utf-8",
-        ) as f:
-            output_dir = cache_dir / txt_file.stem
-            output_dir.mkdir(exist_ok=True, parents=True)
-            word_cache_file = output_dir / "tts_cache.json"
-            word_cache = WordCache(word_cache_file)
-            words = f.read().strip().split("\n")
-            for word in tqdm(
-                words,
-                desc="generate voice",
-                leave=False,
-            ):
-                file_name = word_cache.get_id(word)
-                for speaker_id in speaker_ids:
-                    file_path = output_dir / f"{file_name}_{speaker_id}.wav"
-                    cfile_path = output_dir / f"{file_path.stem}.mp3"
-                    if not file_path.is_file():
-                        engine.tts(
-                            speaker=speaker_id,
-                            text=word,
-                            params_hook=(
-                                params_hook[str(speaker_id)]
-                                if speaker_id in params_hook
-                                else {}
-                            ),
-                            output=file_path,
-                        )
-                    assert file_path.is_file(), "file generates error"
-                    if not cfile_path.is_file():
-                        compressor.compress(file_path, cfile_path)
-                    assert cfile_path.is_file(), "compressed file generates error"
-            word_cache.save()
+    # read and validate input jsonl
+    print(f"Validating input JSONL file: {input_file.absolute()}")
+    valid_lines, errors = validate_jsonl_file(input_file)
+    
+    if errors:
+        print(f"\n⚠️  Found {len(errors)} invalid line(s) in JSONL file:")
+        for error in errors:
+            print(f"  Line {error['line_num']}: {error['error']}")
+            print(f"    Content: {error['content']}")
+        
+        # Ask user if they want to continue
+        response = input("\nDo you want to continue processing valid lines only? (y/n): ")
+        if response.lower() != 'y':
+            print("Processing cancelled.")
+            return
+        print(f"\nContinuing with {len(valid_lines)} valid line(s)...\n")
+    else:
+        print(f"✓ JSONL file is valid. Found {len(valid_lines)} entries.\n")
+    
+    output_data = []
+    
+    for line_num, line, entry in tqdm(valid_lines, desc="Processing JSONL entries"):
+        
+        # Check if sentence field exists
+        if "sentence" not in entry:
+            warning_msg = f"Warning: 'sentence' field not found at line {line_num}"
+            print(warning_msg)
+            entry["_processing_error"] = warning_msg
+            output_data.append(entry)
+            continue
+        
+        sentence = entry["sentence"]
+        audio_files = []
+        
+        for speaker_id in speaker_ids:
+            # Generate unique filename
+            file_id = str(uuid.uuid4())[:8]
+            file_ext = "mp3" if args.compress else "wav"
+            file_name = f"{file_id}_speaker{speaker_id}.{file_ext}"
+            file_path = out_dir / file_name
+            
+            # Generate TTS
+            print(f"Generating audio for: {sentence[:50]}...")
+            engine.tts(
+                speaker=speaker_id,
+                text=sentence,
+                params_hook=(
+                    params_hook[str(speaker_id)]
+                    if str(speaker_id) in params_hook
+                    else {}
+                ),
+                output=file_path,
+            )
+            
+            assert file_path.is_file(), f"Failed to generate audio file: {file_path}"
+            
+            # Compress to mp3 if requested
+            if args.compress:
+                wav_file = file_path.with_suffix(".wav")
+                if wav_file.is_file():
+                    compressor.compress(wav_file, file_path)
+                    assert file_path.is_file(), f"Failed to compress audio file: {file_path}"
+            
+            audio_files.append(str(file_path))
+        
+        # Add audio_files to the entry
+        entry["audio_files"] = audio_files
+        output_data.append(entry)
+        print(f"Generated {len(audio_files)} audio file(s) for entry")
+    
+    # write output jsonl
+    with open(output_file, "w", encoding="utf-8") as f:
+        for entry in output_data:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    
+    print(f"\nCompleted! Output written to {output_file.absolute()}")
+    print(f"Audio files saved to {out_dir.absolute()}")
 
 
 if __name__ == "__main__":
