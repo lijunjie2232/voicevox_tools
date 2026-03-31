@@ -1,145 +1,298 @@
-from pydub import AudioSegment
+import requests
+from pprint import pprint
 from pathlib import Path
-import subprocess
 
 
-class Compressor:
-    def __init__(self, out_fmt="mp3", bitrate="32k", sample_rate="22050", channels=1):
-        """
-        Initialize audio compressor with optimized settings for small file size.
-        
-        Args:
-            out_fmt: Output format (default: mp3)
-            bitrate: Bitrate in kbps (default: 32k, lower = smaller file)
-            sample_rate: Sample rate in Hz (default: 22050, speech-optimized)
-            channels: Number of channels (default: 1 for mono, best for speech)
-        """
-        self.out_fmt = out_fmt
-        self.bitrate = bitrate
-        self.sample_rate = sample_rate
-        self.channels = channels
+class SpeakerStyle:
+    def __init__(self, id: int, name: str, type: str):
+        self.id = id
+        self.name = name
+        self.type = type
 
-    def compress(
-        self,
-        data=None,
-        in_file=None,
-        out_file=None,
-        overwrite=False,
-        use_ffmpeg_optimized=False,
-    ):
-        """
-        Compress audio file with optional ffmpeg optimization.
-        
-        Args:
-            data: Audio data in bytes
-            in_file: Input audio file path
-            out_file: Output audio file path
-            overwrite: Whether to overwrite existing file
-            use_ffmpeg_optimized: Use ffmpeg with VBR for better compression (recommended)
-        """
-        sound = None
-        assert out_file, "out_file is not specified"
-        out_file = Path(out_file)
-        assert out_file.parent.exists(), f"{out_file.parent} is not found"
-        
-        if isinstance(data, bytes):
-            sound = AudioSegment(data)
-        elif isinstance(in_file, Path) or isinstance(in_file, str):
-            sound = AudioSegment.from_wav(in_file)
-        else:
-            raise ValueError("data or in_file is not valid")
-        
-        if out_file.is_dir() and in_file is not None:
-            out_file = out_file / f"{in_file.stem}.{self.out_fmt}"
-        
-        if out_file.is_file() and not overwrite:
-            return
-        
-        # Use ffmpeg with VBR for better compression if available
-        if use_ffmpeg_optimized and self.out_fmt == "mp3":
-            try:
-                self._compress_with_ffmpeg(sound, out_file)
-                return
-            except Exception as e:
-                print(f"FFmpeg compression failed, falling back to pydub: {e}")
-        
-        # Fallback to pydub compression
-        sound.export(
-            out_file, 
-            format=self.out_fmt, 
-            bitrate=self.bitrate,
-            parameters=[
-                "-ar", str(self.sample_rate),  # Sample rate
-                "-ac", str(self.channels),     # Channels (mono for speech)
-            ]
-        )
-    
-    def _compress_with_ffmpeg(self, sound, out_file):
-        """
-        Use ffmpeg with VBR (Variable Bit Rate) for optimal compression.
-        This produces much smaller files while maintaining good quality for speech.
-        """
-        # Create a temporary wav file
-        temp_wav = out_file.with_suffix(".tmp.wav")
-        sound.export(temp_wav, format="wav")
-        
-        # FFmpeg command with VBR for MP3
-        # -q:a 0-9 where 0 is best quality (highest bitrate), 9 is worst (lowest)
-        # q:a 4 gives good quality speech at ~32-64kbps average
-        # q:a 5-6 gives smaller files (~16-32kbps) still good for speech
-        ffmpeg_cmd = [
-            "ffmpeg", "-y",
-            "-i", str(temp_wav),
-            "-vn",  # No video
-            "-acodec", "libmp3lame",  # MP3 codec
-            "-q:a", "5",  # VBR quality level (4-6 recommended for speech)
-            "-ar", str(self.sample_rate),  # Sample rate
-            "-ac", str(self.channels),  # Mono channel
-            str(out_file)
-        ]
-        
-        try:
-            subprocess.run(ffmpeg_cmd, check=True, capture_output=True)
-        finally:
-            # Clean up temp file
-            if temp_wav.exists():
-                temp_wav.unlink()
-    
-    def set_quality(self, quality="small"):
-        """
-        Set predefined quality presets.
-        
-        Args:
-            quality: 'tiny' (16k), 'small' (24k), 'medium' (32k), 'high' (64k)
-        """
-        presets = {
-            "tiny": {"bitrate": "16k", "sample_rate": "16000", "q": "7"},
-            "small": {"bitrate": "24k", "sample_rate": "22050", "q": "5"},
-            "medium": {"bitrate": "32k", "sample_rate": "22050", "q": "4"},
-            "high": {"bitrate": "64k", "sample_rate": "44100", "q": "2"},
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
         }
-        
-        if quality in presets:
-            preset = presets[quality]
-            self.bitrate = preset["bitrate"]
-            self.sample_rate = preset["sample_rate"]
-            self.ffmpeg_q = preset["q"]
+
+
+class SpeakerSupportedFeatures:
+    def __init__(self, permitted_synthesis_morphing: str):
+        self.permitted_synthesis_morphing = permitted_synthesis_morphing
+
+    def to_dict(self):
+        return {
+            "permitted_synthesis_morphing": self.permitted_synthesis_morphing,
+        }
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class SpeakerStylesInfo:
+    def __init__(
+        self,
+        name: str,
+        speaker_uuid,
+        styles: list[dict],
+        version: str,
+        supported_features: dict,
+    ):
+        self.name = name
+        self.speaker_uuid = speaker_uuid
+        self.styles = [SpeakerStyle(**style) for style in styles]
+        self.version = version
+        self.supported_features = SpeakerSupportedFeatures(**supported_features)
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "speaker_uuid": self.speaker_uuid,
+            "styles": [style.to_dict() for style in self.styles],
+            "version": self.version,
+            "supported_features": self.supported_features.to_dict(),
+        }
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return str(self.to_dict())
+
+
+class VoicevoxEngine:
+
+    def __init__(
+        self,
+        base_url: str = "http://localhost:50021",
+        device: str = "cuda",
+    ):
+        self.session = requests.Session()
+        self.base_url = base_url
+        self.device = self.check_devices(device)
+        self.speakers = [SpeakerStylesInfo(**ss) for ss in self.get_speakers()]
+        pass
+
+    def req(self, *args, **kwargs):
+        return_type = "json()"
+        success_code = 200
+        if "return_type" in kwargs:
+            return_type = kwargs.pop("return_type")
+        if "success_code" in kwargs:
+            success_code = kwargs.pop("success_code")
+        response = self.session.request(*args, **kwargs)
+
+        if response.status_code != success_code:
+            try:
+                pprint(response.json())
+            except:
+                # pprint(response)
+                pass
+            raise Exception(f"response returned status code: {response.status_code}")
+
+        try:
+            if not return_type:
+                return response
+            if return_type.endswith("()"):
+                return_type = return_type[:-2]
+                return getattr(response, return_type)()
+            return getattr(response, return_type)
+        except Exception as e:
+            pprint(e)
+            return response
+
+    def get_devices(self):
+        return self.req(
+            "GET",
+            url=f"{self.base_url}/supported_devices",
+        )
+
+    def check_devices(self, device="cuda"):
+        response = self.get_devices()
+        assert device in response, Exception(f"Device {device} is not supported")
+
+        pprint(
+            "supported devices are: " + f"{[k for k, v in response.items() if v]}",
+        )
+
+        if not response[device]:
+            raise Exception(f"Device {device} is not available in this environment")
         else:
-            raise ValueError(f"Unknown quality preset: {quality}")
+            pprint(f"{device} is available, device set to {device}")
+
+        return device
+
+    def get_speakers(self):
+        return self.req(
+            "GET",
+            f"{self.base_url}/speakers",
+        )
+
+    def get_speaker_info(
+        self,
+        speaker_uuid,
+        resource_format="base64",
+        core_version=None,
+    ):
+        params = {
+            "speaker_uuid": speaker_uuid,
+            "resource_format": resource_format,
+        }
+        if core_version:
+            params["core_version"] = core_version
+        return self.req(
+            "GET",
+            f"{self.base_url}/speaker_info",
+            params=params,
+        )
+
+    def audio_query(
+        self,
+        speaker: int,
+        text: str,
+    ):
+        return self.req(
+            "POST",
+            f"{self.base_url}/audio_query",
+            params={"text": text, "speaker": speaker},
+        )
+
+    def update_params(
+        self,
+        params,
+        **kwargs,
+    ):
+        params.update(**kwargs)
+        return params
+
+    def synthesis(
+        self,
+        speaker: int,
+        params: dict,
+        enable_interrogative_upspeak=True,
+    ):
+        return self.req(
+            "POST",
+            f"{self.base_url}/synthesis",
+            json=params,
+            params={
+                "enable_interrogative_upspeak": enable_interrogative_upspeak,
+                "speaker": speaker,
+            },
+            return_type="content",
+        )
+
+    def refresh_speaker(self):
+        self.speakers = self.get_speakers()
+
+    def get_speaker_style(
+        self,
+        speaker_uuid: str = None,
+        name: str = None,
+        amb_match: bool = True,
+        return_dict: bool = False,
+    ):
+        assert speaker_uuid or name, Exception(
+            "at least one of speaker_uuid or name is required"
+        )
+
+        def uuid_filter(speaker):
+            if not speaker_uuid:
+                return True
+            return speaker.speaker_uuid == speaker_uuid
+
+        def name_filter(speaker):
+            if not name:
+                return True
+            if amb_match:
+                return name.lower() in speaker.name.lower()
+            return speaker.name == name
+
+        def speaker_filter(speaker):
+            return uuid_filter(speaker) and name_filter(speaker)
+
+        if return_dict:
+            return [i.to_dict() for i in filter(speaker_filter, self.speakers)]
+
+        return list(filter(speaker_filter, self.speakers))
+
+    def speaker_init_check(self, **kwargs):
+        """
+        kwargs:
+            speaker(required)   [integer] (Speaker)
+            core_version    [string] (Core Version)
+        """
+        return self.req(
+            "POST",
+            f"{self.base_url}/is_initialized_speaker",
+            params=kwargs,
+        )
+
+    def speaker_init(self, **kwargs):
+        """
+        kwargs:
+            speaker(required)   [integer] (Speaker)
+            skip_reinit [boolean] (Skip Reinit) Default: False 既に初期化済みのスタイルの再初期化をスキップするかどうか
+            core_version    [string] (Core Version)
+        """
+        self.req(
+            "POST",
+            f"{self.base_url}/initialize_speaker",
+            params=kwargs,
+            return_type=None,
+            success_code=204,
+        )
+        return True
+
+    def tts(
+        self,
+        speaker,
+        text,
+        params_hook: dict = {},
+        output=None,
+        overwrite=False,
+    ):
+        params = self.audio_query(speaker, text)
+        # params = self.update_params(params, **params_hook)
+        params.update(params_hook)
+        wav = self.synthesis(speaker, params)
+        if output:
+            output = Path(output)
+            if not output.is_file() or overwrite:
+                assert output.parent.is_dir(), Exception(
+                    f"output directory {output.parent} does not exist"
+                )
+                with open(output, "wb") as f:
+                    f.write(wav)
+            return
+        return wav
 
 
 if __name__ == "__main__":
-    c = Compressor()
-    # Test different quality settings
-    print("Testing compression with different quality levels...")
-    
-    test_file = "output.wav"
-    if Path(test_file).exists():
-        for quality in ["tiny", "small", "medium", "high"]:
-            c.set_quality(quality)
-            output_file = f"output_{quality}.mp3"
-            c.compress(test_file, output_file, use_ffmpeg_optimized=True)
-            size = Path(output_file).stat().st_size / 1024  # KB
-            print(f"{quality}: {size:.1f} KB")
-    else:
-        c.compress("output.wav", "output.mp3")
+    base_url = "http://localhost:50021"
+
+    v = VoicevoxEngine(device="cuda")
+    speakers = v.get_speakers()
+    speaker_info = v.get_speaker_info("67d5d8da-acd7-4207-bb10-b5542d3a663b")
+    speaker_style = v.get_speaker_style(
+        speaker_uuid="67d5d8da-acd7-4207-bb10-b5542d3a663b", return_dict=True
+    )
+    pprint(speaker_style)
+    # for ss in speaker_style:
+    #     SpeakerStylesInfo(**ss)
+    v.speaker_init(speaker=13, skip_reinit=True)
+    # params = v.audio_query(23, "こんにちは")
+
+    # pprint(params)
+    wav = v.tts(23, "こんにちは", output="output.wav")
+    pass
