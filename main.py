@@ -212,12 +212,16 @@ def main(args):
     output_file = Path(args.output)
     out_dir = Path(args.out_dir)
     
-    assert input_file.exists(), f"{input_file.absolute()} is not found"
+    # Only validate input file if not in query-only mode
+    if not args.query_only:
+        assert input_file.exists(), f"{input_file.absolute()} is not found"
+    
     out_dir.mkdir(parents=True, exist_ok=True)
     
     logger.info("[2/5] Configuration loaded:")
-    logger.info(f"     Input file:  {input_file.absolute()}")
-    logger.info(f"     Output file: {output_file.absolute()}")
+    if not args.query_only:
+        logger.info(f"     Input file:  {input_file.absolute()}")
+        logger.info(f"     Output file: {output_file.absolute()}")
     logger.info(f"     Audio dir:   {out_dir.absolute()}")
     logger.info("")
 
